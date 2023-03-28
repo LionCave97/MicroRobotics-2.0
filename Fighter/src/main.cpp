@@ -9,9 +9,12 @@ byte sAddresses[][6] = {"BasT","BasR"};
 
 int buzzerPin = 6;
 
+int rxError =0;
+int errorMax =100;
+
 //Radio Pair
 typedef struct{
-  int id = 11; // Each student will receive a id number
+  int id = 12; // Each student will receive a id number
   bool paired = false;
 }
 pair;
@@ -25,8 +28,8 @@ int rightForward = A1;
 int rightBackward = A2;
 int rightPWM = 5;
 
-int leftSpeed = 60;
-int rightSpeed = 60;
+int leftSpeed = 100;
+int rightSpeed = 100;
 bool boosting = 0;
 unsigned long boostTime = 5000;
 unsigned long boostRecharge = 5000;
@@ -63,6 +66,7 @@ void pairNow(){
   radio.begin();
   radio.setChannel(1);
   radio.openWritingPipe(sAddresses[0]);  
+  radio.enableAckPayload();
   radio.stopListening();
 
   radio.setRetries(3,5); 
@@ -70,17 +74,33 @@ void pairNow(){
   bool rslt;
   rslt = radio.write( &pairData, sizeof(pairData) );
   if (rslt) {
+        Serial.println("  Acknowledge received");
+
+      if (radio.isAckPayloadAvailable()) {
+        radio.read(&pairData, sizeof(pairData));
         Serial.print("Data Sent Id = ");
         Serial.print(pairData.id);
         Serial.println("  Acknowledge received");
-        pairData.paired = true;
-        digitalWrite(buzzerPin, HIGH);
-        delay(200);
-        digitalWrite(buzzerPin, LOW);
-        radio.setChannel(pairData.id);
-        radio.stopListening();
-        radio.openReadingPipe(1, sAddresses[0]);
-        radio.startListening();
+        Serial.println(pairData.paired);
+
+        if (pairData.paired)
+        {
+        Serial.println("Paired");
+
+          digitalWrite(buzzerPin, HIGH);
+          delay(200);
+          digitalWrite(buzzerPin, LOW);
+          radio.setChannel(pairData.id);
+          radio.stopListening();
+          radio.openReadingPipe(1, sAddresses[0]);
+          radio.startListening();
+        } else{
+        Serial.println("Not Paired");
+
+        }
+        
+        
+      }
     }
 }
 
@@ -95,6 +115,8 @@ void setup() {
 
   pinMode(weapon1, OUTPUT); 
   pinMode(weapon2, OUTPUT); 
+  digitalWrite(weapon1, HIGH);
+  digitalWrite(weapon2, HIGH);
 
   pinMode(leftPWM, OUTPUT); 
   pinMode(rightPWM, OUTPUT); 
@@ -124,16 +146,16 @@ void move(){
     digitalWrite(leftForward, HIGH);
   } else if (ctrlData.backward){
     Serial.println("backward");    
-    digitalWrite(rightForward, HIGH);
-    digitalWrite(leftForward, HIGH);
+    digitalWrite(rightBackward, HIGH);
+    digitalWrite(leftBackward, HIGH);
   } else if (ctrlData.left){
     Serial.println("left");    
-    digitalWrite(rightBackward, HIGH);
-    digitalWrite(leftForward, HIGH);
-  }  else if (ctrlData.right){
-    Serial.println("right");    
     digitalWrite(rightForward, HIGH);
     digitalWrite(leftBackward, HIGH);
+  }  else if (ctrlData.right){
+    Serial.println("right");    
+    digitalWrite(rightBackward, HIGH);
+    digitalWrite(leftForward, HIGH);
   } else{
     digitalWrite(rightForward, LOW);
     digitalWrite(leftBackward, LOW);
@@ -145,11 +167,11 @@ void move(){
       {
       // Serial.println("Weapon");
 
-        digitalWrite(weapon1, HIGH);
-        digitalWrite(weapon2, HIGH);
-      } else{
         digitalWrite(weapon1, LOW);
         digitalWrite(weapon2, LOW);
+      } else{
+        digitalWrite(weapon1, HIGH);
+        digitalWrite(weapon2, HIGH);
 
       }
 
@@ -159,15 +181,17 @@ void move(){
 }
 
 void loop() {
+  // Serial.println(rxError);
+  digitalWrite(buzzerPin, LOW);
 
   unsigned long currentTime = millis();
 
-  float voltage = analogRead(A3);  // It reads the input pin  
+  float voltage = analogRead(A7);  // It reads the input pin  
   // voltage = voltage * (3.3 / 1023);
   fighterData.battery = mapFloat(voltage, 0, 650, 0, 12);  
   // Serial.print("Voltage: ");    
   // Serial.println(voltage);    
- 
+  // Serial.println(fighterData.battery);  
   if (!pairData.paired)
   {
     pairNow();
@@ -175,6 +199,7 @@ void loop() {
     radio.openReadingPipe(1, sAddresses[0]);
     radio.startListening();
     if (radio.available()){
+      rxError =0;
       radio.read(&ctrlData, sizeof(ctrlData));
       radio.stopListening();
       radio.openWritingPipe(sAddresses[1]);  
@@ -182,7 +207,24 @@ void loop() {
       radio.write( &fighterData, sizeof(fighterData) );
       move();
     } else{
-      // Serial.println("Rx failed");
+      rxError = rxError + 1;
+      if (rxError > errorMax)
+      {
+        Serial.println("Rx failed");
+        digitalWrite(buzzerPin, HIGH);
+        delay(100);
+
+        // Serial.println(rxError);
+        digitalWrite(weapon1, HIGH);
+        digitalWrite(weapon2, HIGH);
+        digitalWrite(rightForward, LOW);
+        digitalWrite(leftBackward, LOW);
+        digitalWrite(rightBackward, LOW);
+        digitalWrite(leftForward, LOW);
+
+      }
+      
+      
     }
     
   }

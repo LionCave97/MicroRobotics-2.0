@@ -3,6 +3,17 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+#include <avr/power.h> // Required for 16 MHz Adafruit Trinket
+#endif
+
+#define PIN_NEO_PIXEL  3   // Arduino pin that connects to NeoPixel
+#define NUM_PIXELS     24  // The number of LEDs (pixels) on NeoPixel
+
+Adafruit_NeoPixel NeoPixel(NUM_PIXELS, PIN_NEO_PIXEL, NEO_GRB + NEO_KHZ800);
+
+
 //Radio Setup
 RF24 radio(10, 9);  // CE, CSN
 byte sAddresses[][6] = {"BasT","BasR"};
@@ -16,7 +27,7 @@ typedef struct{
 }
 pair;
 pair pairData;
-
+int pairId= 0;
 
 // Controller Ports
 int leftBtn = A3;
@@ -62,34 +73,44 @@ fighter fighterData;
 
 void pairNow(){
   delay(500);
+  for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+    NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 10, 10)); // it only takes effect if pixels.show() is called
+  }
+  NeoPixel.show();
   pairData.id = 0;
   pairData.paired = false;
   radio.begin();
   radio.setChannel(1);
+  radio.enableAckPayload();
+  
   radio.stopListening();
   radio.openReadingPipe(1, sAddresses[0]);
   radio.startListening();
   radio.write( &pairData, sizeof(pairData) );  
+  
 
-    while (!radio.available())
-    {
-      Serial.println("No signal");    
-    }
-
-    if (radio.available())
-    {
-      pairbuttonState = false;
-      // Serial.println("Received");
-      radio.read(&pairData, sizeof(pairData));
-      // Serial.println(pairData.id);
-      digitalWrite(buzzerPin, HIGH);
-      delay(200);
-      digitalWrite(buzzerPin, LOW);
-      pairData.paired = true;
-      radio.setChannel(pairData.id);
-      radio.stopListening();
-      radio.openWritingPipe(sAddresses[0]);      
-    }
+  while (!radio.available())
+  {
+    // Serial.println("No signal");    
+  }
+  
+  if (radio.available())
+  {
+    pairbuttonState = false;
+    // Serial.println("Received");
+    radio.read(&pairData, sizeof(pairData));
+    pairData.paired = true;
+    pairId = pairData.id;
+    radio.writeAckPayload(1, &pairData, sizeof(pairData));
+    // Serial.println(pairData.id);
+    digitalWrite(buzzerPin, HIGH);
+    delay(200);
+    digitalWrite(buzzerPin, LOW);
+    pairData.paired = true;
+    radio.setChannel(pairData.id);
+    radio.stopListening();
+    radio.openWritingPipe(sAddresses[0]);      
+  }
   
 }
 
@@ -120,27 +141,35 @@ void getController(){
   }else{
     ctrlData.backward = 0;
   }
-
+  Serial.println(analogRead(btn4));
   if (analogRead(btn1) <= 100)
   {
+    // Serial.println("Btn1");
+
     ctrlData.btn1 = true;
   }else{
     ctrlData.btn1 = false;
   }
     if (analogRead(btn2) <= 100)
   {
+    // Serial.println("Btn2");
+
     ctrlData.btn2 = true;
   }else{
     ctrlData.btn2 = false;
   }
   if (analogRead(btn3) <= 100)
   {
+    // Serial.println("Btn3");
+
     ctrlData.btn3 = true;
   }else{
     ctrlData.btn3 = false;
   }
     if (analogRead(btn4) <= 100)
   {
+    // Serial.println("Btn4");
+
     ctrlData.btn4 = true;
   }else{
     ctrlData.btn4 = false;
@@ -160,21 +189,61 @@ void sendData(){
   if (rslt) {
             // Serial.println("  Acknowledge received");
             while (radio.available()){
+              for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+                NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 10, 0)); // it only takes effect if pixels.show() is called
+              }
+              NeoPixel.show();
               // Serial.println(" Fighter Acknowledge received");
               radio.read(&fighterData, sizeof(fighterData));
               // Serial.println(fighterData.id);
-              Serial.println(fighterData.battery);
+              // Serial.print("Volts: ");
+              // Serial.println(fighterData.battery);
               errorCount = 0;
             }
         }
         else {
             Serial.println("  Tx failed");
             errorCount = errorCount + 1; 
-            if (errorCount >= 10)
+            if (errorCount >= 20)
             {
               digitalWrite(buzzerPin, HIGH);
               delay(100);
+              for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+                NeoPixel.setPixelColor(pixel, NeoPixel.Color(10, 0, 0)); // it only takes effect if pixels.show() is called
+              }
+              NeoPixel.show();
+
+            radio.setChannel(1);
+            radio.stopListening();
+            radio.openReadingPipe(1, sAddresses[0]);
+            radio.startListening();
+            radio.write( &pairData, sizeof(pairData) );  
+            
+            
+            if (radio.available())
+            {
+              pairbuttonState = false;
+              // Serial.println("Received");
+              radio.read(&pairData, sizeof(pairData));
+              if (pairData.id == pairId){
+                pairData.paired = true;
+                radio.writeAckPayload(1, &pairData, sizeof(pairData));
+                // Serial.println(pairData.id);
+                digitalWrite(buzzerPin, HIGH);
+                delay(100);
+                digitalWrite(buzzerPin, LOW);
+                pairData.paired = true;
+                 
+              }
+              
+                   
             }
+            radio.setChannel(pairData.id);
+            radio.stopListening();
+            radio.openWritingPipe(sAddresses[0]);
+            }
+
+            
             
 
         }
@@ -186,6 +255,18 @@ void sendData(){
 void setup() {
   Serial.begin(9600);
   Serial.println("Remote Init");
+
+  NeoPixel.begin();
+
+  // turn off all pixels for two seconds
+  NeoPixel.clear();
+
+  // turn on all pixels to red at the same time for two seconds
+  for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+    NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 0, 10)); // it only takes effect if pixels.show() is called
+  }
+  NeoPixel.show();
+
 
   pinMode(btn1,INPUT_PULLUP);
   pinMode(btn2,INPUT_PULLUP);
@@ -210,6 +291,35 @@ void setup() {
 }
 
 void loop() {  
+
+  // NeoPixel.clear(); // set all pixel colors to 'off'. It only takes effect if pixels.show() is called
+
+  // // turn pixels to green one by one with delay between each pixel
+  // for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+  //   NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 255, 0)); // it only takes effect if pixels.show() is called
+  //   NeoPixel.show();   // send the updated pixel colors to the NeoPixel hardware.
+
+  //   delay(500); // pause between each pixel
+  // }
+
+  // // turn off all pixels for two seconds
+  // NeoPixel.clear();
+  // NeoPixel.show(); // send the updated pixel colors to the NeoPixel hardware.
+  // delay(2000);     // off time
+
+  // // turn on all pixels to red at the same time for two seconds
+  // for (int pixel = 0; pixel < NUM_PIXELS; pixel++) { // for each pixel
+  //   NeoPixel.setPixelColor(pixel, NeoPixel.Color(255, 0, 0)); // it only takes effect if pixels.show() is called
+  // }
+  // NeoPixel.show(); // send the updated pixel colors to the NeoPixel hardware.
+  // delay(2000);     // on time
+
+  // // turn off all pixels for one seconds
+  // NeoPixel.clear();
+  // NeoPixel.show(); // send the updated pixel colors to the NeoPixel hardware.
+  // delay(2000);     // off time
+
+
   getController();
   if (pairbuttonState)
   {
@@ -220,7 +330,7 @@ void loop() {
   
   if (!pairData.paired)
   { 
-    Serial.println("Not Paired");
+    // Serial.println("Not Paired");
 
   }else {
     // Serial.println("Paired");
