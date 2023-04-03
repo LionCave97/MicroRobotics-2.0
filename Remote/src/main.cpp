@@ -196,9 +196,9 @@ void sendData(){
               // Serial.println(fighterData.id);
               int batteryStat = map(fighterData.battery, 8.4 ,12 , 1, 24);
               // Serial.print("Volts: ");
-              for (int pixel = 0; pixel < NUM_PIXELS-batteryStat; pixel++) { // for each pixel
-                NeoPixel.setPixelColor(pixel, NeoPixel.Color(30, 10, 0)); // it only takes effect if pixels.show() is called
-              }
+              // for (int pixel = 0; pixel < NUM_PIXELS-batteryStat; pixel++) { // for each pixel
+              //   NeoPixel.setPixelColor(pixel, NeoPixel.Color(30, 10, 0)); // it only takes effect if pixels.show() is called
+              // }
 
               for (int pixel = 0; pixel < NUM_PIXELS-batteryStat; pixel++) { // for each pixel
                 NeoPixel.setPixelColor(pixel, NeoPixel.Color(0, 10, 80)); // it only takes effect if pixels.show() is called
