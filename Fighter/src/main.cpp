@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <EEPROM.h>
 
 //Radio Setup
 RF24 radio(10, 9);  // CE, CSN
@@ -14,7 +15,7 @@ int errorMax =100;
 
 //Radio Pair
 typedef struct{
-  int id = 12; // Each student will receive a id number
+  int id = EEPROM.read(0); // Each student will receive a id number
   bool paired = false;
 }
 pair;
@@ -104,9 +105,20 @@ void pairNow(){
     }
 }
 
+int resetPin = 28;
+
 void setup() {
+  //Reset ID EEPROM
+  // EEPROM.update(0, 255);
+
   Serial.begin(9600);
   Serial.println("Fighter Init");
+  Serial.print("Id: ");
+  Serial.println(pairData.id);
+
+  digitalWrite(resetPin, HIGH);   
+  pinMode(resetPin, OUTPUT); 
+  
 
   pinMode(leftForward, OUTPUT); 
   pinMode(leftBackward, OUTPUT); 
@@ -122,14 +134,18 @@ void setup() {
   pinMode(rightPWM, OUTPUT); 
 
   pinMode(buzzerPin, OUTPUT);
-  digitalWrite(buzzerPin, HIGH);
-  delay(200);
-  digitalWrite(buzzerPin, LOW);
-  delay(500);
-  digitalWrite(buzzerPin, HIGH);
-  delay(500);
-  digitalWrite(buzzerPin, LOW);
+  // digitalWrite(buzzerPin, HIGH);
+  // delay(200);
+  // digitalWrite(buzzerPin, LOW);
+  // delay(500);
+  // digitalWrite(buzzerPin, HIGH);
+  // delay(500);
+  // digitalWrite(buzzerPin, LOW);
 
+
+  Serial.println("Fighter Ready!");
+  Serial.println("Commands available:");
+  Serial.println("| i - ID | m - Motors | w - Weapon");
 
 
   // digitalWrite(leftForward, HIGH);
@@ -180,6 +196,55 @@ void move(){
 
 }
 
+void motor(){
+      analogWrite(leftPWM, map(80, 0, 100, 0, 255));
+      analogWrite(rightPWM, map(80, 0, 100, 0, 255));
+      Serial.println("rightForward");
+      digitalWrite(rightForward, HIGH);
+      delay(2000);
+      digitalWrite(rightForward, LOW);
+      Serial.println("rightBackward");
+      digitalWrite(rightBackward, HIGH);
+      delay(2000);
+      digitalWrite(rightBackward, LOW);
+      Serial.println("leftForward");
+      digitalWrite(leftForward, HIGH);
+      delay(2000);
+      digitalWrite(leftForward, LOW);
+      Serial.println("leftBackward");
+      digitalWrite(leftBackward, HIGH);
+      delay(2000);
+      digitalWrite(leftBackward, LOW);
+      delay(2000);
+      Serial.println("All Forward");
+      digitalWrite(leftForward, HIGH);
+      digitalWrite(rightForward, HIGH);
+      delay(2000);
+      Serial.println("Max Speed!");
+      analogWrite(leftPWM, map(100, 0, 100, 0, 255));
+      analogWrite(rightPWM, map(100, 0, 100, 0, 255));
+      delay(2000);
+      digitalWrite(leftForward, LOW);
+      digitalWrite(rightForward, LOW);
+      analogWrite(leftPWM, map(80, 0, 100, 0, 255));
+      analogWrite(rightPWM, map(80, 0, 100, 0, 255));
+}
+
+void weapon(){
+  Serial.println("Get Ready");
+  delay(2000);
+  Serial.println("Weapon 1");
+  digitalWrite(weapon1, LOW);
+  delay(2000);
+  digitalWrite(weapon1, HIGH);
+  Serial.println("Weapon 2");
+  digitalWrite(weapon2, LOW);
+  delay(2000);
+  digitalWrite(weapon2, HIGH);
+}
+
+int newID;
+String idString = "";
 void loop() {
   // Serial.println(rxError);
   digitalWrite(buzzerPin, LOW);
@@ -192,6 +257,53 @@ void loop() {
   // Serial.print("Voltage: ");    
   // Serial.println(voltage);    
   // Serial.println(fighterData.battery);  
+  
+  
+  if (Serial.available()) {
+    String inByte = Serial.readString();
+    Serial.println(inByte);
+
+    if (inByte == "i"){
+      Serial.println("Reseting id:");
+      pairData.id = 255;
+    }
+    if (inByte == "m"){
+      Serial.println("Running motors");
+      motor();
+      Serial.println("Done!");
+
+    }
+    if (inByte == "w"){
+      Serial.println("Running weapons");
+      weapon();
+      Serial.println("Done!");
+    }
+
+  }
+
+if (pairData.id == 255){
+    Serial.println("Please set Fighter ID: ");
+    idString = "";
+  }
+  while (pairData.id == 255){
+      if (Serial.available()) {
+      String inByte = Serial.readString();
+      if (inByte == "e"){
+        Serial.println("");
+        Serial.println("Saving id:");
+        newID = idString.toInt();
+        Serial.println(newID);
+        EEPROM.update(0, newID);
+        pairData.id = newID;
+        digitalWrite(resetPin, LOW); 
+        setup();
+      }
+      idString = idString + inByte;
+      Serial.println(idString);
+      
+    }
+  }
+  
   if (!pairData.paired)
   {
     pairNow();
