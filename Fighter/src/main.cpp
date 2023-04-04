@@ -59,6 +59,7 @@ ctrl ctrlData;
 typedef struct{
   int id = pairData.id;
   float battery = 11; 
+  int boost = 0;
 }
 fighter;
 fighter fighterData;

@@ -207,7 +207,7 @@ void sendData(){
               NeoPixel.show();
 
               // Serial.println(fighterData.battery);
-              Serial.println(batteryStat);
+              // Serial.println(batteryStat);
 
               errorCount = 0;
             }
@@ -288,9 +288,23 @@ void setup() {
   digitalWrite(buzzerPin, HIGH);
   delay(200);
   digitalWrite(buzzerPin, LOW);
+
+  Serial.println("Commands available:");
+  Serial.println("| p - Pair | ");
 }
 
 void loop() {  
+
+  if (Serial.available()) {
+    String inByte = Serial.readString();
+    Serial.println(inByte);
+
+    if (inByte == "p"){
+      Serial.println("Pairing");
+      pairData.paired = false;
+      pairNow();
+    }
+  }
 
   getController();
   if (pairbuttonState)
