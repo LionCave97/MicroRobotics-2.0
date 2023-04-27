@@ -10,8 +10,13 @@ byte sAddresses[][6] = {"BasT","BasR"};
 
 int buzzerPin = 6;
 
-int rxError =0;
-int errorMax =100;
+int rxError = 0;
+int errorMax = 700;
+int normalSpeed = 60;
+
+// float steeringMix = (EEPROM.read(1)/100);
+float steeringMix = 1.4;
+
 
 //Radio Pair
 typedef struct{
@@ -29,9 +34,10 @@ int rightForward = A1;
 int rightBackward = A2;
 int rightPWM = 5;
 
-int leftSpeed = 100;
-int rightSpeed = 100;
+int leftSpeed = 60;
+int rightSpeed = 60;
 bool boosting = 0;
+
 unsigned long boostTime = 5000;
 unsigned long boostRecharge = 5000;
 unsigned long previousTime = 0;
@@ -70,25 +76,20 @@ void pairNow(){
   radio.openWritingPipe(sAddresses[0]);  
   radio.enableAckPayload();
   radio.stopListening();
-
+  // radio.setPALevel(RF24_PA_MIN);
   radio.setRetries(3,5); 
-
   bool rslt;
   rslt = radio.write( &pairData, sizeof(pairData) );
   if (rslt) {
         Serial.println("  Acknowledge received");
-
       if (radio.isAckPayloadAvailable()) {
         radio.read(&pairData, sizeof(pairData));
         Serial.print("Data Sent Id = ");
         Serial.print(pairData.id);
         Serial.println("  Acknowledge received");
         Serial.println(pairData.paired);
-
-        if (pairData.paired)
-        {
+        if (pairData.paired){
         Serial.println("Paired");
-
           digitalWrite(buzzerPin, HIGH);
           delay(200);
           digitalWrite(buzzerPin, LOW);
@@ -98,10 +99,7 @@ void pairNow(){
           radio.startListening();
         } else{
         Serial.println("Not Paired");
-
         }
-        
-        
       }
     }
 }
@@ -116,6 +114,9 @@ void setup() {
   Serial.println("Fighter Init");
   Serial.print("Id: ");
   Serial.println(pairData.id);
+  Serial.println(steeringMix);
+
+
 
   digitalWrite(resetPin, HIGH);   
   pinMode(resetPin, OUTPUT); 
@@ -128,28 +129,26 @@ void setup() {
 
   pinMode(weapon1, OUTPUT); 
   pinMode(weapon2, OUTPUT); 
-  digitalWrite(weapon1, HIGH);
-  digitalWrite(weapon2, HIGH);
+  digitalWrite(weapon1, LOW);
+  digitalWrite(weapon2, LOW);
 
   pinMode(leftPWM, OUTPUT); 
   pinMode(rightPWM, OUTPUT); 
 
   pinMode(buzzerPin, OUTPUT);
-  // digitalWrite(buzzerPin, HIGH);
-  // delay(200);
-  // digitalWrite(buzzerPin, LOW);
-  // delay(500);
-  // digitalWrite(buzzerPin, HIGH);
-  // delay(500);
-  // digitalWrite(buzzerPin, LOW);
+  digitalWrite(buzzerPin, HIGH);
+  delay(200);
+  digitalWrite(buzzerPin, LOW);
+  delay(500);
+  digitalWrite(buzzerPin, HIGH);
+  delay(500);
+  digitalWrite(buzzerPin, LOW);
 
 
   Serial.println("Fighter Ready!");
   Serial.println("Commands available:");
-  Serial.println("| i - ID | m - Motors | w - Weapon");
+  Serial.println("| i - ID | m - Motors | w - Weapon | s - Steering");
 
-
-  // digitalWrite(leftForward, HIGH);
 }
 float mapFloat(long x, long in_min, long in_max, long out_min, long out_max)
 {
@@ -157,44 +156,88 @@ float mapFloat(long x, long in_min, long in_max, long out_min, long out_max)
 }
 
 void move(){
-  if (ctrlData.forward){
-    Serial.println("forward");    
-    digitalWrite(rightForward, HIGH);
-    digitalWrite(leftForward, HIGH);
-  } else if (ctrlData.backward){
-    Serial.println("backward");    
-    digitalWrite(rightBackward, HIGH);
-    digitalWrite(leftBackward, HIGH);
-  } else if (ctrlData.left){
-    Serial.println("left");    
-    digitalWrite(rightForward, HIGH);
-    digitalWrite(leftBackward, HIGH);
-  }  else if (ctrlData.right){
-    Serial.println("right");    
-    digitalWrite(rightBackward, HIGH);
-    digitalWrite(leftForward, HIGH);
-  } else{
-    digitalWrite(rightForward, LOW);
-    digitalWrite(leftBackward, LOW);
-    digitalWrite(rightBackward, LOW);
-    digitalWrite(leftForward, LOW);
+   if (ctrlData.btn2)
+  {
+    leftSpeed = 100;
+    rightSpeed = 100;
+  }
+  else
+  {
+    leftSpeed = 60;
+    rightSpeed = 60;
   }
 
-  if (ctrlData.btn4)
-      {
-      // Serial.println("Weapon");
+  if (ctrlData.left && ctrlData.forward){
+    // Serial.println("left Forward");    
+    digitalWrite(rightForward, HIGH);
+    digitalWrite(leftForward, HIGH);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, LOW);
+    leftSpeed = leftSpeed - (leftSpeed/steeringMix);
 
-        digitalWrite(weapon1, LOW);
-        digitalWrite(weapon2, LOW);
-      } else{
-        digitalWrite(weapon1, HIGH);
-        digitalWrite(weapon2, HIGH);
+  }  else if (ctrlData.right && ctrlData.forward){
+    // Serial.println("right Forward");    
+    digitalWrite(rightForward, HIGH);
+    digitalWrite(leftForward, HIGH);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, LOW);
+    rightSpeed = rightSpeed -(rightSpeed/steeringMix);
+    
+  }  else if (ctrlData.left && ctrlData.backward){
+    // Serial.println("left Backward");    
+    digitalWrite(rightForward, HIGH);
+    digitalWrite(leftForward, LOW);
+    digitalWrite(leftBackward, HIGH);
+    digitalWrite(rightBackward, LOW);
+  }  else if (ctrlData.right && ctrlData.backward){
+    // Serial.println("right Backward");    
+    digitalWrite(rightForward, LOW);
+    digitalWrite(leftForward, HIGH);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, HIGH);
+  } else if (ctrlData.left){
+    // Serial.println("left");    
+    digitalWrite(rightForward, HIGH);
+    digitalWrite(leftForward, LOW);
+    digitalWrite(leftBackward, HIGH);
+    digitalWrite(rightBackward, LOW);
+  }  else if (ctrlData.right){
+    // Serial.println("right");    
+    digitalWrite(rightForward, LOW);
+    digitalWrite(leftForward, HIGH);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, HIGH);
+  } else if (ctrlData.forward){
+    // Serial.println("forward");    
+    digitalWrite(rightForward, HIGH);
+    digitalWrite(leftForward, HIGH);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, LOW);
+  } else if (ctrlData.backward){
+    // Serial.println("backward");    
+    digitalWrite(rightForward, LOW);
+    digitalWrite(leftForward, LOW);
+    digitalWrite(leftBackward, HIGH);
+    digitalWrite(rightBackward, HIGH);
+  } else {
+    digitalWrite(rightForward, LOW);
+    digitalWrite(leftForward, LOW);
+    digitalWrite(leftBackward, LOW);
+    digitalWrite(rightBackward, LOW);
+  }
 
-      }
-
+  if (ctrlData.btn1)
+  {
+  // Serial.println("Weapon");
+    digitalWrite(weapon1, HIGH);
+    digitalWrite(weapon2, HIGH);
+  } else{
+    digitalWrite(weapon1, LOW);
+    digitalWrite(weapon2, LOW);
+  }
+ 
   analogWrite(leftPWM, map(leftSpeed, 0, 100, 0, 255));
   analogWrite(rightPWM, map(rightSpeed, 0, 100, 0, 255));
-
 }
 
 void motor(){
@@ -245,6 +288,7 @@ void weapon(){
 }
 
 int newID;
+float newSteeringMix;
 String idString = "";
 void loop() {
   // Serial.println(rxError);
@@ -259,7 +303,6 @@ void loop() {
   // Serial.println(voltage);    
   // Serial.println(fighterData.battery);  
   
-  
   if (Serial.available()) {
     String inByte = Serial.readString();
     Serial.println(inByte);
@@ -272,11 +315,15 @@ void loop() {
       Serial.println("Running motors");
       motor();
       Serial.println("Done!");
-
     }
     if (inByte == "w"){
       Serial.println("Running weapons");
       weapon();
+      Serial.println("Done!");
+    }
+     if (inByte == "s"){
+      Serial.println("Reseting steering Mix");
+      steeringMix = 255;
       Serial.println("Done!");
     }
 
@@ -301,10 +348,33 @@ if (pairData.id == 255){
       }
       idString = idString + inByte;
       Serial.println(idString);
-      
     }
   }
   
+
+// if (steeringMix == 255){
+//     Serial.println("Please set Fighter Steering Mix: ");
+//     idString = "";
+//   }
+
+//   while (steeringMix == 255){
+//       if (Serial.available()) {
+//       String inByte = Serial.readString();
+//       if (inByte == "e"){
+//         Serial.println("");
+//         Serial.println("Saving Steering Mix:");
+//         newSteeringMix = idString.toFloat();
+//         Serial.println(newSteeringMix);
+//         EEPROM.update(1, newSteeringMix);
+//         steeringMix = newSteeringMix;
+//         digitalWrite(resetPin, LOW); 
+//         setup();
+//       }
+//       idString = idString + inByte;
+//       Serial.println(idString);
+//     }
+//   }
+
   if (!pairData.paired)
   {
     pairNow();
@@ -321,7 +391,7 @@ if (pairData.id == 255){
       move();
     } else{
       rxError = rxError + 1;
-      if (rxError > errorMax)
+      if (rxError >= errorMax)
       {
         Serial.println("Rx failed");
         digitalWrite(buzzerPin, HIGH);

@@ -45,6 +45,8 @@ int leftSpeed = 0;
 int rightSpeed = 0;
 
 int errorCount = 0;
+int errorMax = 100;
+
 
 int pairButton= 2;
 boolean pairbuttonState;
@@ -139,40 +141,54 @@ void getController(){
   }else{
     ctrlData.backward = 0;
   }
-  // Serial.println(analogRead(btn4));
-  if (analogRead(btn1) <= 100)
+
+  int btn1Value= analogRead(btn1);
+  int btn2Value= analogRead(btn2);
+  int btn3Value= analogRead(btn3);
+  int btn4Value= analogRead(btn4);
+
+  
+  if (btn1Value <= 100)
   {
-    // Serial.println("Btn1");
+    // Serial.print(btn1Value);
+    // Serial.println(": Btn1");
 
     ctrlData.btn1 = true;
   }else{
     ctrlData.btn1 = false;
   }
-    if (analogRead(btn2) <= 100)
+
+    if (btn2Value <= 20)
   {
-    // Serial.println("Btn2");
+    // Serial.print(analogRead(btn2));
+    // Serial.println(": Btn2");
 
     ctrlData.btn2 = true;
   }else{
     ctrlData.btn2 = false;
   }
-  if (analogRead(btn3) <= 100)
+
+  if (btn3Value <= 10)
   {
-    // Serial.println("Btn3");
+    // Serial.print(btn3Value);
+    // Serial.println(": Btn3");
 
     ctrlData.btn3 = true;
   }else{
     ctrlData.btn3 = false;
   }
-    if (analogRead(btn4) <= 100)
+
+    if (btn4Value <= 5)
   {
-    // Serial.println("Btn4");
+    // Serial.print(btn4Value);
+    // Serial.println(": Btn4");
 
     ctrlData.btn4 = true;
   }else{
     ctrlData.btn4 = false;
   }
 
+  // delay(100);
 }
 
 void sendData(){
@@ -215,7 +231,7 @@ void sendData(){
         else {
             Serial.println("  Tx failed");
             errorCount = errorCount + 1; 
-            if (errorCount >= 20)
+            if (errorCount >= errorMax)
             {
               digitalWrite(buzzerPin, HIGH);
               delay(100);
@@ -244,7 +260,6 @@ void sendData(){
                 delay(100);
                 digitalWrite(buzzerPin, LOW);
                 pairData.paired = true;
-                 
               }
               
                    
