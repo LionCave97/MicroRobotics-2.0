@@ -35,10 +35,10 @@ int rightBtn = A2;
 int upBtn = A0;
 int downBtn = A1;
 
-int btn1 = A4;
-int btn2 = A5;
-int btn3 = A6;
-int btn4 = A7;
+int btn1 = A4; //Bottom right
+int btn2 = A5; //Top Left
+int btn3 = A6; //Bottom left
+int btn4 = A7; //Top right
 
 
 int leftSpeed = 0;
@@ -150,8 +150,8 @@ void getController(){
   
   if (btn1Value <= 100)
   {
-    // Serial.print(btn1Value);
-    // Serial.println(": Btn1");
+    Serial.print(btn1Value);
+    Serial.println(": Btn1");
 
     ctrlData.btn1 = true;
   }else{
@@ -160,8 +160,8 @@ void getController(){
 
     if (btn2Value <= 20)
   {
-    // Serial.print(analogRead(btn2));
-    // Serial.println(": Btn2");
+    Serial.print(analogRead(btn2));
+    Serial.println(": Btn2");
 
     ctrlData.btn2 = true;
   }else{
@@ -170,8 +170,8 @@ void getController(){
 
   if (btn3Value <= 10)
   {
-    // Serial.print(btn3Value);
-    // Serial.println(": Btn3");
+    Serial.print(btn3Value);
+    Serial.println(": Btn3");
 
     ctrlData.btn3 = true;
   }else{
@@ -180,8 +180,8 @@ void getController(){
 
     if (btn4Value <= 5)
   {
-    // Serial.print(btn4Value);
-    // Serial.println(": Btn4");
+    Serial.print(btn4Value);
+    Serial.println(": Btn4");
 
     ctrlData.btn4 = true;
   }else{
